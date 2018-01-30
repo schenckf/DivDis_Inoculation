@@ -1,0 +1,298 @@
+---
+title: "DivDis_Analyses"
+author: "Forest Schenck"
+date: "January 29, 2018"
+output: pdf_document
+---
+
+#Packages
+```{r}
+#data manipulation
+library(dplyr)
+library(tidyr)
+
+#plotting
+library(ggplot2)
+library(sciplot)
+```
+
+
+#Uploading data
+```{r}
+mesocosm.data <- read.csv("ConditionAssessment_Data.csv")
+```
+
+#Data organization
+```{r}
+str(mesocosm.data)
+
+#subsetting data to january 2018 variables of interest
+jan2018 <- mesocosm.data %>%
+  filter(month == "january") %>% #subsetting to month
+  dplyr::select(bin.id, paired.com.id, vase.id, loc.id, diversity.treatment, depth, disease.treatment, family.id, color, alive, shoot.no, length.1:length.7, Notes) #only selection variables of interest
+
+for(n in 1:480){
+  jan2018$total.length[n] <- sum(jan2018[n,12:18], na.rm=T) #summing length of all shoots per plant
+}
+
+#gathering data so disease and control are on same line
+jan2018.disease <- jan2018 %>%
+  filter(disease.treatment == "disease") %>%
+  dplyr::select(bin.id, paired.com.id, loc.id, diversity.treatment, depth, family.id, color, alive)
+jan2018.control <- jan2018 %>%
+  filter(disease.treatment == "control") %>%
+  dplyr::select(bin.id, paired.com.id, loc.id, diversity.treatment, depth, family.id, color, alive)
+colnames(jan2018.control) <- c("bin.id", "paired.com.id", "loc.id", "diversity.treatment", "depth", "family.id", "color", "alive.control")
+colnames(jan2018.disease) <- c("bin.id", "paired.com.id", "loc.id", "diversity.treatment", "depth", "family.id", "color", "alive.disease")
+jan2018.paired <- merge(jan2018.disease, jan2018.control, by = c("bin.id", "paired.com.id", "loc.id", "diversity.treatment", "depth", "family.id", "color"))
+
+#VIABLE mono communities
+jan2018.paired.vase.mono <- jan2018.paired %>%
+  filter(diversity.treatment == "mono") %>%
+  group_by(bin.id, paired.com.id, diversity.treatment, depth, family.id) %>%
+  summarize(sum.alive.d = sum(alive.disease), sum.alive.c = sum(alive.control)) %>%
+  filter(sum.alive.d > 1 & sum.alive.c > 1)
+
+#MONO DATAFRAME TO EXPORT
+jan2018.mono <- jan2018 %>%
+  dplyr::select(bin.id, paired.com.id, vase.id, loc.id, diversity.treatment, depth, disease.treatment, family.id, color, alive) %>%
+  filter(diversity.treatment == "mono") %>%
+  filter(alive == 1) %>%
+  filter(family.id == "S6" | family.id == "S3"| family.id == "S12"| family.id == "S11"| family.id == "S1" | family.id == "M9"| family.id == "M7"| family.id == "M6"| family.id == "M4"| family.id == "M3"| family.id == "M12"| family.id == "M10"| family.id == "D8"| family.id == "D6"| family.id == "D4"| family.id == "D3"| family.id == "D11"| family.id == "D10")
+
+write.csv( jan2018.mono, "MonoVases.csv" )
+
+##identifying VIABLE communities based on pairs present (must be at least 2 shoot alive in both and must be at least 2 shoots from same mom alive in both and at least 2 of surving shoots pairs must be in monoculture)
+#VIABLE poly communities
+jan2018.paired.poly <- jan2018.paired %>%
+  filter(diversity.treatment == "poly") #only selecting polys
+jan2018.paired.poly$pair.present <- jan2018.paired.poly$alive.disease == jan2018.paired.poly$alive.control #creating a column identifying if pairs are matching or not
+jan2018.paired.poly <- jan2018.paired.poly %>%
+  filter(alive.disease ==1 | alive.control == 1) #each pair must have at least 1 live shoot to be considered (excluded 0=0 issue)
+for(n in 1:108){
+  if (jan2018.paired.poly$pair.present[n] == T)
+  {jan2018.paired.poly$pair.present[n] = 1
+  } else {
+    jan2018.paired.poly$pair.present[n] = 0
+    }
+} #switching pairs from T/F to 1/0
+
+jan2018.paired.vase.poly <- jan2018.paired.poly %>%
+  group_by(bin.id, paired.com.id, diversity.treatment, depth) %>% #grouping by vase
+  summarize(sum.pair.present = sum(pair.present), sum.alive.d = sum(alive.disease), sum.alive.c = sum(alive.control)) %>%
+  filter(sum.pair.present > 1) #only selected vases with at least 2 paired locations where shoots are alive
+
+jan2018.paired.poly.subset.complete <- jan2018.paired.poly %>%
+  filter(paired.com.id == "V19" | paired.com.id == "V21"| paired.com.id == "V23"| paired.com.id == "V25"| paired.com.id == "V55"| paired.com.id == "V59"| paired.com.id == "V61"| paired.com.id == "V71"| paired.com.id == "V91"| paired.com.id == "V93"| paired.com.id == "V95"| paired.com.id == "V97"| paired.com.id == "V101"| paired.com.id == "V103"| paired.com.id == "V107"| paired.com.id == "V111"| paired.com.id == "V117") %>% #selecting vases with a least 2 perfect pairs
+  #filter(pair.present != 0) %>% #removing all shoots without a pair
+  filter(family.id == "S6" | family.id == "S3"| family.id == "S12"| family.id == "S11"| family.id == "S1" | family.id == "M9"| family.id == "M7"| family.id == "M6"| family.id == "M4"| family.id == "M3"| family.id == "M12"| family.id == "M10"| family.id == "D8"| family.id == "D6"| family.id == "D4"| family.id == "D3"| family.id == "D11"| family.id == "D10") #only selecting shoots that have viable monocultures
+
+###data set with vases that have exact matches without stragglers (perfect) and with stragglers that have viable Mono
+jan2018.paired.vase.poly.subset.complete <- jan2018.paired.poly.subset.complete %>%
+  group_by(bin.id, paired.com.id, diversity.treatment, depth) %>% #grouping by vase pairs
+  summarize(sum.pair.present = sum(pair.present), sum.alive.c = sum(alive.control), sum.alive.d = sum(alive.disease)) %>% #summing up number of pairs of shoots present per vase pair
+  filter(sum.pair.present > 1) #filtering out vases with less than 2 shoot pairs alive
+jan2018.paired.vase.poly.subset.complete$unpaired.control <- jan2018.paired.vase.poly.subset.complete$sum.alive.c - jan2018.paired.vase.poly.subset.complete$sum.pair.present #identifying pairs with viable-mono-(vm)-stragglers in control
+jan2018.paired.vase.poly.subset.complete$unpaired.disease <- jan2018.paired.vase.poly.subset.complete$sum.alive.d - jan2018.paired.vase.poly.subset.complete$sum.pair.present #identifying pairs with vm-stragglers in disease
+
+jan2018.paired.vase.poly.subset.complete$em.vms <- NA #(em.vms = exact-match-viable-mono-straggler)
+for(n in 1:10){
+  if (jan2018.paired.vase.poly.subset.complete$unpaired.control[n] + jan2018.paired.vase.poly.subset.complete$unpaired.disease[n] > 0)
+  {jan2018.paired.vase.poly.subset.complete$em.vms[n] = 1
+  } else {
+    jan2018.paired.vase.poly.subset.complete$em.vms[n] = 0
+  }
+}
+jan2018.paired.vase.poly.subset.complete$em <- 1-jan2018.paired.vase.poly.subset.complete$em.vms
+
+##Data set that identifies location of stragglers
+jan2018.paired.poly.subset.complete <- jan2018.paired.poly.subset.complete %>%
+filter(paired.com.id == "V93" | paired.com.id == "V91" | paired.com.id == "V107" | paired.com.id == "V95" | paired.com.id == "V55" | paired.com.id == "V71" | paired.com.id == "V59" | paired.com.id == "V25" | paired.com.id == "V21" | paired.com.id == "V23" ) #selecting only vases that have at least 2 shoot pairs alive in both disease and control treatment
+
+#jan2018.ems <- jan2018.paired.poly %>% #identifying exact match paired stragglers that are not in poly
+  #filter(paired.com.id == "V93" | paired.com.id == "V91" | paired.com.id == "V107" | paired.com.id == "V95" | paired.com.id == "V55" | #paired.com.id == "V71" | paired.com.id == "V59" | paired.com.id == "V25" | paired.com.id == "V21" | paired.com.id == "V23" ) %>%
+  #group_by(bin.id, paired.com.id, diversity.treatment, depth) %>% #grouping by vase pairs
+  #summarize(sum.pair.present = sum(pair.present), sum.alive.c = sum(alive.control), sum.alive.d = sum(alive.disease))  #identifying pairs with viable-mono-(vm)-stragglers in control
+#jan2018.ems$unpaired.control <- jan2018.ems$sum.alive.c - jan2018.paired.vase.poly.subset.complete$sum.pair.present 
+#jan2018.paired.vase.poly.subset.complete$unpaired.disease <- jan2018.paired.vase.poly.subset.complete$sum.alive.d - #jan2018.paired.vase.poly.subset.complete$sum.pair.present #identifying pairs with vm-stragglers in disease
+
+#jan2018.match1 <- merge(jan2018.ems, jan2018.paired.vase.poly.subset.complete, by = "paired.com.id")
+
+#Identifying VIABLE Poly communities based on: must be 2 shoots alive in poly community that are represented in mono community.
+jan2018.poly.2 <- jan2018 %>%
+  dplyr::select(bin.id, paired.com.id, vase.id, loc.id, diversity.treatment, depth, family.id, color, alive) %>%
+  filter(diversity.treatment == "poly") %>%
+  filter(family.id == "S6" | family.id == "S3"| family.id == "S12"| family.id == "S11"| family.id == "S1" | family.id == "M9"| family.id == "M7"| family.id == "M6"| family.id == "M4"| family.id == "M3"| family.id == "M12"| family.id == "M10"| family.id == "D8"| family.id == "D6"| family.id == "D4"| family.id == "D3"| family.id == "D11"| family.id == "D10")
+
+jan2018.poly.2.vase <- jan2018.poly.2 %>%
+  group_by(bin.id, paired.com.id, vase.id, diversity.treatment, depth) %>%
+  summarize(sum.alive = sum(alive)) %>%
+  filter(sum.alive > 1)
+
+View(jan2018.poly.2.vase)
+  
+#all alive shoots in target vases
+jan2018.poly.2.alive <- jan2018 %>%
+  dplyr::select(bin.id, paired.com.id, vase.id, loc.id, diversity.treatment, depth, family.id, color, alive) %>%
+  filter(diversity.treatment == "poly") %>%
+  filter(alive > 0) %>%
+  filter(vase.id == 2 |vase.id == 6 |vase.id == 8 |vase.id == 9 |vase.id == 17|vase.id == 20|vase.id == 21|vase.id == 22|vase.id == 23|vase.id == 25|vase.id == 29|vase.id == 34|vase.id == 35|vase.id == 36|vase.id == 37|vase.id == 41|vase.id == 43|vase.id == 47|vase.id == 49|vase.id == 50|vase.id == 51|vase.id == 52|vase.id == 58|vase.id == 67|vase.id == 71|vase.id == 72|vase.id == 76|vase.id == 80|vase.id == 87|vase.id == 91|vase.id == 100|vase.id == 103|vase.id == 106|vase.id == 107|vase.id == 108|vase.id == 118)
+
+#only alive shoots represented in mono from target vases
+#jan2018.poly.2.alive.subset <- jan2018 %>%
+   #dplyr::select(bin.id, paired.com.id, vase.id, loc.id, diversity.treatment, depth, family.id, color, alive) %>%
+  #filter(diversity.treatment == "poly") %>%
+  #filter(alive > 0) %>%
+  #filter(family.id == "S6" | family.id == "S3"| family.id == "S12"| family.id == "S11"| family.id == "S1" | family.id == "M9"| family.id == "M7"| family.id == "M6"| family.id == "M4"| family.id == "M3"| family.id == "M12"| family.id == "M10"| family.id == "D8"| family.id == "D6"| family.id == "D4"| family.id == "D3"| family.id == "D11"| family.id == "D10") %>%
+  #filter(vase.id == 2 |vase.id == 6 |vase.id == 8 |vase.id == 9 |vase.id == 17|vase.id == 20|vase.id == 21|vase.id == 22|vase.id == 23|vase.id == 25|vase.id == 29|vase.id == 34|vase.id == 35|vase.id == 36|vase.id == 37|vase.id == 41|vase.id == 43|vase.id == 47|vase.id == 49|vase.id == 50|vase.id == 51|vase.id == 52|vase.id == 58|vase.id == 67|vase.id == 71|vase.id == 72|vase.id == 76|vase.id == 80|vase.id == 87|vase.id == 91|vase.id == 100|vase.id == 103|vase.id == 106|vase.id == 107|vase.id == 108|vase.id == 118)
+
+write.csv( jan2018.poly.2.alive, "PolyVases.csv" )
+
+```
+
+##Seagrass response
+```{r}
+#jan2018.subset <- jan2018 %>%
+ # filter(paired.com.id == "V93" | paired.com.id == "V91" | paired.com.id == "V107" | paired.com.id == "V95" | paired.com.id == "V55" | paired.com.id == "V71" | paired.com.id == "V59" | paired.com.id == "V25" | paired.com.id == "V21" | paired.com.id == "V23" |paired.com.id == "V17"| paired.com.id == "V47"| paired.com.id == "V49"| paired.com.id == "V11"| paired.com.id == "V37"| paired.com.id == "V53"| paired.com.id == "V89"| paired.com.id == "V77"| paired.com.id == "V41"| paired.com.id == "V43"| paired.com.id == "V15"| paired.com.id == "V83"| paired.com.id == "V39"| paired.com.id == "V5"| paired.com.id == "V79"| paired.com.id == "V87"| paired.com.id == "V81"| paired.com.id == "V1") %>%
+#  group_by(bin.id, paired.com.id, diversity.treatment, disease.treatment, depth) %>%
+#  summarize(sum.alive = sum(alive), mean.shoot.no = sum(shoot.no, na.rm = T)/sum(alive), mean.length.avg = sum(avg.length, na.rm = T)/sum(alive))
+
+##Entire Experiment
+#shoot number per vase
+jan2018.fig <- jan2018 %>%
+  group_by(vase.id, diversity.treatment, depth) %>%
+  summarize(alive = sum(alive), shoot.no = sum(shoot.no), total.length = sum(total.length))
+
+p <- ggplot(jan2018.fig, aes(x = diversity.treatment, y = shoot.no, fill = depth)) + 
+  #scale_fill_manual(values = c("white", "gray")) +
+  geom_violin(position = position_dodge(1)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 0.5) +
+  stat_summary(fun.y = mean, geom = "point", size = 3, color = "red", position = position_dodge(1)) +
+  labs(x = "Diversity", y = "number of shoots per vase") +
+  theme_classic()
+p
+
+bargraph.CI(x.factor = depth, response = shoot.no, group = diversity.treatment, data = jan2018.fig, ylab = "shoots per vase", legend = T, ylim = c(0,7))
+
+model <-aov(shoot.no ~ depth*diversity.treatment, data = jan2018.fig)
+anova(model)
+
+#length per vase
+p <- ggplot(jan2018.fig, aes(x = diversity.treatment, y = total.length, fill = depth)) + 
+  #scale_fill_manual(values = c("white", "gray")) +
+  geom_violin(position = position_dodge(1)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 0.5) +
+  stat_summary(fun.y = mean, geom = "point", size = 3, color = "red", position = position_dodge(1)) +
+  labs(x = "Diversity", y = "total shoot length/vase") +
+  theme_classic()
+p
+
+bargraph.CI(x.factor = depth, response = total.length, group = diversity.treatment, data = jan2018.fig, ylab = "total length per vase", legend = T, ylim = c(0,300))
+model <-aov(total.length ~ depth*diversity.treatment, data = filter(jan2018.fig, diversity.treatment != "mix"))
+anova(model)
+
+
+#alive per vase
+p <- ggplot(jan2018.fig, aes(x = diversity.treatment, y = alive, fill = depth)) + 
+  #scale_fill_manual(values = c("white", "gray")) +
+  geom_violin(position = position_dodge(1)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 0.5) +
+  stat_summary(fun.y = mean, geom = "point", size = 3, color = "red", position = position_dodge(1)) +
+  labs(x = "Diversity", y = "proportion alive") +
+  theme_classic()
+p
+bargraph.CI(x.factor = depth, response = alive, group = diversity.treatment, data = jan2018.fig, ylab = "alive per vase", legend = T, ylim = c(0,5))
+model <-aov(alive ~ depth*diversity.treatment, data = filter(jan2018.fig, diversity.treatment != "mix"))
+anova(model)
+
+##shoot number per plant
+p <- ggplot(jan2018.fig, aes(x = diversity.treatment, y = shoot.no/alive, fill = depth)) + 
+  #scale_fill_manual(values = c("white", "gray")) +
+  geom_violin(position = position_dodge(1)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 0.5) +
+  stat_summary(fun.y = mean, geom = "point", size = 3, color = "red", position = position_dodge(1)) +
+  labs(x = "Diversity", y = "number of shoots per plant per vase") +
+  theme_classic()
+p
+bargraph.CI(x.factor = depth, response = shoot.no/alive, group = diversity.treatment, data = jan2018.fig, ylab = "alive per vase", legend = T, ylim = c(0,5))
+model <-aov((shoot.no/alive) ~ depth*diversity.treatment, data = filter(jan2018.fig, diversity.treatment != "mix"))
+anova(model)
+model <-aov((shoot.no/alive) ~ diversity.treatment, data = jan2018.fig)
+anova(model)
+
+##Focal Vases
+jan2018.focal <- read.csv("Vases_master.csv")
+
+jan2018.focal <- jan2018.focal %>%
+  group_by(vase.id, diversity.treatment, disease.treatment, depth) %>%
+  summarize(alive = sum(alive), shoot.no = sum(shoot.no), total.length = sum(total.length.cm))
+
+#shoot number per vase
+p <- ggplot(jan2018.focal, aes(x = diversity.treatment, y = shoot.no, fill = depth)) + 
+  #scale_fill_manual(values = c("white", "gray")) +
+  geom_violin(position = position_dodge(1)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 0.5) +
+  stat_summary(fun.y = mean, geom = "point", size = 3, color = "red", position = position_dodge(1)) +
+  labs(x = "Diversity", y = "number of shoots per focal vase") +
+  theme_classic()
+p
+
+bargraph.CI(x.factor = depth, response = shoot.no, group = diversity.treatment, data = jan2018.focal, ylab = "shoots per focal vase", legend = T, ylim = c(0,7))
+model <-aov(shoot.no ~ depth*diversity.treatment, data = filter(jan2018.focal, diversity.treatment != "mix"))
+anova(model)
+model <-aov(shoot.no ~ diversity.treatment, data = jan2018.focal)
+anova(model)
+
+bargraph.CI(x.factor = diversity.treatment, response = shoot.no, group = disease.treatment, data = jan2018.focal, ylab = "shoots per focal vase", legend = T, ylim = c(0,7))
+
+#total length per vase
+p <- ggplot(jan2018.focal, aes(x = diversity.treatment, y = total.length, fill = depth)) + 
+  #scale_fill_manual(values = c("white", "gray")) +
+  geom_violin(position = position_dodge(1)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 0.5) +
+  stat_summary(fun.y = mean, geom = "point", size = 3, color = "red", position = position_dodge(1)) +
+  labs(x = "Diversity", y = "total length per focal vase") +
+  theme_classic()
+p
+
+bargraph.CI(x.factor = depth, response = total.length, group = diversity.treatment, data = jan2018.focal, ylab = "total length per focal vase", legend = T, ylim = c(0,300))
+model <-aov(total.length ~ depth*diversity.treatment, data = filter(jan2018.focal, diversity.treatment != "mix"))
+anova(model)
+model <-aov(total.length ~ diversity.treatment, data = jan2018.focal)
+anova(model)
+
+#alive per vase
+p <- ggplot(jan2018.focal, aes(x = diversity.treatment, y = alive, fill = depth)) + 
+  #scale_fill_manual(values = c("white", "gray")) +
+  geom_violin(position = position_dodge(1)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 0.5) +
+  stat_summary(fun.y = mean, geom = "point", size = 3, color = "red", position = position_dodge(1)) +
+  labs(x = "Diversity", y = "alive per focal vase") +
+  theme_classic()
+p
+
+bargraph.CI(x.factor = depth, response = alive, group = diversity.treatment, data = jan2018.focal, ylab = "plants alive per focal vase", legend = T, ylim = c(0,4))
+model <-aov(alive ~ depth*diversity.treatment, data = filter(jan2018.focal, diversity.treatment != "mix"))
+anova(model)
+model <-aov(alive ~ diversity.treatment, data = jan2018.focal)
+anova(model)
+
+bargraph.CI(x.factor = diversity.treatment, response = alive, group = disease.treatment, data = jan2018.focal, ylab = "alive", legend = T, ylim = c(0,4))
+
+#shoot number per plant per vase
+p <- ggplot(jan2018.focal, aes(x = diversity.treatment, y = shoot.no/alive, fill = depth)) + 
+  #scale_fill_manual(values = c("white", "gray")) +
+  geom_violin(position = position_dodge(1)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 0.5) +
+  stat_summary(fun.y = mean, geom = "point", size = 3, color = "red", position = position_dodge(1)) +
+  labs(x = "Diversity", y = "number of shoots per plant per vase") +
+  theme_classic()
+p
+
+bargraph.CI(x.factor = depth, response = shoot.no/alive, group = diversity.treatment, data = jan2018.focal, ylab = "shoots per plant per focal vase", legend = T, ylim = c(0,3))
+model <-aov((shoot.no/alive) ~ depth*diversity.treatment, data = filter(jan2018.focal, diversity.treatment != "mix"))
+anova(model)
+
+```
+
+
