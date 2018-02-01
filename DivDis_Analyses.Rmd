@@ -150,7 +150,8 @@ write.csv( jan2018.poly.2.alive, "PolyVases.csv" )
 
 ```
 
-##Seagrass response
+#Seagrass response
+##Entire Experiment
 ```{r}
 #jan2018.subset <- jan2018 %>%
  # filter(paired.com.id == "V93" | paired.com.id == "V91" | paired.com.id == "V107" | paired.com.id == "V95" | paired.com.id == "V55" | paired.com.id == "V71" | paired.com.id == "V59" | paired.com.id == "V25" | paired.com.id == "V21" | paired.com.id == "V23" |paired.com.id == "V17"| paired.com.id == "V47"| paired.com.id == "V49"| paired.com.id == "V11"| paired.com.id == "V37"| paired.com.id == "V53"| paired.com.id == "V89"| paired.com.id == "V77"| paired.com.id == "V41"| paired.com.id == "V43"| paired.com.id == "V15"| paired.com.id == "V83"| paired.com.id == "V39"| paired.com.id == "V5"| paired.com.id == "V79"| paired.com.id == "V87"| paired.com.id == "V81"| paired.com.id == "V1") %>%
@@ -219,8 +220,10 @@ model <-aov((shoot.no/alive) ~ depth*diversity.treatment, data = filter(jan2018.
 anova(model)
 model <-aov((shoot.no/alive) ~ diversity.treatment, data = jan2018.fig)
 anova(model)
+```
 
 ##Focal Vases
+```{r}
 jan2018.focal <- read.csv("Vases_master.csv")
 
 jan2018.focal <- jan2018.focal %>%
