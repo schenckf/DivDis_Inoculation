@@ -246,7 +246,10 @@ anova(model)
 model <-aov(shoot.no ~ diversity.treatment, data = jan2018.focal)
 anova(model)
 
-bargraph.CI(x.factor = diversity.treatment, response = shoot.no, group = disease.treatment, data = jan2018.focal, ylab = "shoots per focal vase", legend = T, ylim = c(0,7))
+bargraph.CI(x.factor = depth, response = shoot.no, group = disease.treatment, data = jan2018.focal, ylab = "shoots per focal vase", legend = T, ylim = c(0,10))
+
+model <-aov(shoot.no ~ diversity.treatment*disease.treatment, data = filter(jan2018.focal, diversity.treatment != "mix"))
+anova(model)
 
 #total length per vase
 p <- ggplot(jan2018.focal, aes(x = diversity.treatment, y = total.length, fill = depth)) + 
