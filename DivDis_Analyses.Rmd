@@ -248,8 +248,9 @@ model <-aov(shoot.no ~ depth*diversity.treatment, data = filter(jan2018.focal, d
 anova(model)
 model <-aov(shoot.no ~ diversity.treatment, data = jan2018.focal)
 anova(model)
-#disease * depth
-bargraph.CI(x.factor = depth, response = shoot.no, group = disease.treatment, data = jan2018.focal, ylab = "shoots per focal vase", legend = T, ylim = c(0,10))
+#disease * depth *disease
+bargraph.CI(x.factor = depth, response = shoot.no, group = disease.treatment, data = filter(jan2018.focal, diversity.treatment != "poly"), ylab = "shoots per focal vase", legend = T, ylim = c(0,10))
+bargraph.CI(x.factor = depth, response = shoot.no, group = disease.treatment, data = filter(jan2018.focal, diversity.treatment != "mono"), ylab = "shoots per focal vase", legend = T, ylim = c(0,10))
 #disease * diversity
 bargraph.CI(x.factor = diversity.treatment, response = shoot.no, group = disease.treatment, data = jan2018.focal, ylab = "shoots per focal vase", legend = T, ylim = c(0,10))
 
@@ -257,7 +258,15 @@ bargraph.CI(x.factor = diversity.treatment, response = shoot.no, group = disease
 model <-aov(shoot.no ~ depth*disease.treatment, data = jan2018.focal)
 anova(model)
 #diversity*disease model
-model <-aov(shoot.no ~ diversity.treatment*disease.treatment, data = filter(jan2018.focal, diversity.treatment != "mix"))
+model <-aov(shoot.no ~ diversity.treatment*disease.treatment, data = filter(jan2018.focal, depth != "mix"))
+anova(model)
+#depth*diversity*disease model
+model.2 <-aov(shoot.no ~ diversity.treatment*disease.treatment*depth, data = filter(jan2018.focal, depth != "mix"))
+anova(model.2)
+
+jan2018.focal.filter <- filter(jan2018.focal, depth != "mix")
+
+model <-aov(shoot.no ~ diversity.treatment*disease.treatment*depth, data = jan2018.focal)
 anova(model)
 ```
 
@@ -349,4 +358,8 @@ model <-aov((shoot.no/alive) ~ diversity.treatment*disease.treatment, data = fil
 anova(model)
 ```
 
+individual by shoots
+```{r}
+plot(shoot.no/alive ~ alive, data = jan2018.focal)
+```
 
