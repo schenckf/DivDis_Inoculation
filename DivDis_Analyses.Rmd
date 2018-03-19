@@ -396,3 +396,53 @@ p
 #the proportion of vectors per shoot is pretty consistent across shoots because the number of shoots per plant is consistent across treatments that vary in plant number (range: 1.5-2) resulting in a range in initial prevalence of 50-66%. The disease-poly treatment vases with 4 shoots have noticeably less shoots per plant than other treatments, but swapping without changing other factors is going to be very challenging without throwing off other comparisons which I think are more important. Also I think that if shoots/plant is averaged across all plant numbers then disease-poly treatment doesn't differ from other treatments in average shoots/plant
 ```
 
+#inoculation analyses
+##data import
+```{r}
+mar2018.inoc <- read.csv("Vases_master.csv")
+
+str(mar2018.inoc)
+```
+
+##lesion success by shoot length
+```{r}
+plot(lesion.09.mar ~ terminal.shoot.length, data = filter(mar2018.inoc, disease.treatment == "disease"))
+
+model <- glm(cbind(lesion.09.mar,(1-lesion.09.mar)) ~ terminal.shoot.length, family = binomial(link = 'logit'), data = filter(mar2018.inoc, disease.treatment == "disease"))#logistic regression
+summary(model)
+
+curve(predict(model, data.frame(terminal.shoot.length = x), type = "resp"), add = T)
+#not significant and not much of a trend
+```
+
+##family identity
+```{r}
+p <- ggplot(filter(mar2018.inoc, disease.treatment == "disease" & depth == "shallow"), aes(x = family.id, y = lesion.09.mar, fill = diversity.treatment)) + 
+  scale_fill_manual(values = c("white", "gray")) +
+  #geom_violin(position = position_dodge(1)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 1) +
+  stat_summary(fun.y = mean, geom = "point", size = 1, color = "red", position = position_dodge(1)) +
+  labs(x = "family ID", y = "proportion of successful infections") +
+  theme_classic()
+p
+```
+
+#Randall model
+```{r}
+#Maybe we run a model that tests family*diversity on inoculation success (as a binomial)? I don’t think diversity will be significant, but probably good to have it in the model. We could also see whether depth*diversity, or depth(family)*diversity show anything.
+
+mar2018.inoc.exclude <- subset(mar2018.inoc, family.id != "D9")
+mar2018.inoc.exclude <- subset(mar2018.inoc.exclude, family.id != "M8")
+mar2018.inoc.exclude <- subset(mar2018.inoc.exclude, family.id != "S10")
+mar2018.inoc.exclude <- subset(mar2018.inoc.exclude, family.id != "S4")
+mar2018.inoc.exclude <- subset(mar2018.inoc.exclude, family.id != "S5")
+mar2018.inoc.exclude <- subset(mar2018.inoc.exclude, family.id != "D1")
+mar2018.inoc.exclude <- subset(mar2018.inoc.exclude, family.id != "D2")
+mar2018.inoc.exclude <- subset(mar2018.inoc.exclude, family.id != "M11")
+
+model <- glm(cbind(lesion.09.mar,(1-lesion.09.mar)) ~ depth*diversity.treatment, family = binomial(link = 'logit'), data = filter(mar2018.inoc, disease.treatment == "disease"))#logistic regression
+Anova(model)
+anova(model, test = "LR")
+
+```
+
