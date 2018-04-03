@@ -427,7 +427,7 @@ p <- ggplot(filter(mar2018.inoc, disease.treatment == "disease" & depth == "shal
 p
 ```
 
-#Randall model
+##Randall model
 ```{r}
 #Maybe we run a model that tests family*diversity on inoculation success (as a binomial)? I don’t think diversity will be significant, but probably good to have it in the model. We could also see whether depth*diversity, or depth(family)*diversity show anything.
 
@@ -445,4 +445,108 @@ Anova(model)
 anova(model, test = "LR")
 
 ```
+
+#1MONTH Analyses
+
+##data import
+```{r}
+mar2018.1month <- read.csv("Vases_master_1month.csv")
+
+str(mar2018.1month)
+
+mar2018.1month.vase <- mar2018.1month %>%
+  group_by(diversity.treatment, disease.treatment, vase.id) %>%
+  summarize(shoot.no.1month.vase = (sum(shoot.no.26MAR, na.rm = T)-sum(shoot.no.24JAN, na.rm = T))/sum(shoot.no.24JAN, na.rm = T),
+            total.length.1month.vase = (sum(total.length.26MAR, na.rm = T)-sum(total.length.24JAN, na.rm = T))/sum(shoot.no.24JAN, na.rm = T),
+            infected.shoot.length.1month.vase = mean(infected.shoot.length.1month, na.rm = T),
+            lesion.spread.26MAR.vase = mean(lesion.spread.26MAR, na.rm = T),
+            shoot.no.24JAN.vase = sum(shoot.no.24JAN, na.rm = T),
+            shoot.no.26MAR.vase = sum(shoot.no.26MAR, na.rm = T),
+            total.length.26MAR.vase = sum(total.length.26MAR, na.rm = T),
+            total.length.24JAN.vase = sum(total.length.24JAN, na.rm = T),
+            alive.24JAN.vase = sum(alive.24JAN, na.rm = T),
+            infected.shoot.length.26MAR.vase = mean(infected.shoot.length.26MAR),
+            infected.shoot.length.24JAN.vase = mean(infected.shoot.length.24JAN))
+
+#mar2018.1month.vase$total.length.1month.vase <- mar2018.1month.vase$total.length.1month.vase/mar2018.1month.vase$shoot.no.26MAR.vase
+```
+
+##Figures
+```{r}
+p <- ggplot(mar2018.1month.vase, aes(x = disease.treatment, y = shoot.no.1month.vase, fill = diversity.treatment)) + 
+  #scale_fill_manual(values = c("white", "gray")) +
+  geom_violin(position = position_dodge(1)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 0.5) +
+  stat_summary(fun.y = mean, geom = "point", size = 3, color = "red", position = position_dodge(1)) +
+  labs(x = "Disease", y = "Delta number of shoots per initial shoots per vase") +
+  theme_classic()
+p
+
+bargraph.CI(x.factor = disease.treatment, response = shoot.no.1month.vase, group = diversity.treatment, data = mar2018.1month.vase, ylab = "Change in number of shoots per shoot per vase", legend = T)
+
+p <- ggplot(mar2018.1month.vase, aes(x = disease.treatment, y = total.length.1month.vase, fill = diversity.treatment)) + 
+  #scale_fill_manual(values = c("white", "gray")) +
+  geom_violin(position = position_dodge(1)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 0.5) +
+  stat_summary(fun.y = mean, geom = "point", size = 3, color = "red", position = position_dodge(1)) +
+  labs(x = "Disease", y = "Change in length per shoot per vase") +
+  theme_classic()
+p
+
+bargraph.CI(x.factor = disease.treatment, response = total.length.1month.vase, group = diversity.treatment, data = mar2018.1month.vase, ylab = "Delta total length per shoot per vase", legend = T)
+
+p <- ggplot(mar2018.1month.vase, aes(x = disease.treatment, y = infected.shoot.length.1month.vase , fill = diversity.treatment)) + 
+  #scale_fill_manual(values = c("white", "gray")) +
+  geom_violin(position = position_dodge(1)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 0.5) +
+  stat_summary(fun.y = mean, geom = "point", size = 3, color = "red", position = position_dodge(1)) +
+  labs(x = "Disease", y = "Mean percent change in length of inoculated shoots per vase") +
+  theme_classic()
+p
+
+bargraph.CI(x.factor = disease.treatment, response = infected.shoot.length.1month.vase, group = diversity.treatment, data = mar2018.1month.vase, ylab = "Mean percent delta length of infected shoot per vase", legend = T)
+
+
+p <- ggplot(filter(mar2018.1month.vase, disease.treatment == "disease"), aes(x = diversity.treatment, y = lesion.spread.26MAR.vase, fill = diversity.treatment)) + 
+  #scale_fill_manual(values = c("white", "gray")) +
+  geom_violin(position = position_dodge(1)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 0.5) +
+  stat_summary(fun.y = mean, geom = "point", size = 3, color = "red", position = position_dodge(1)) +
+  labs(x = "Diversity", y = "Delta total length per shoot per vase") +
+  theme_classic()
+p
+
+bargraph.CI(x.factor = diversity.treatment, response = lesion.spread.26MAR.vase, data = filter(mar2018.1month.vase, disease.treatment == "disease"), ylab = "Mean Lesion Length per vase", legend = T)
+```
+
+##Analyses
+```{r}
+#
+model.shoot.no.1month <-aov(shoot.no.1month.vase ~ diversity.treatment*disease.treatment, data = mar2018.1month.vase)
+anova(model.shoot.no.1month)
+
+model.shoot.no.1month <- aov(shoot.no.26MAR.vase ~ diversity.treatment*disease.treatment + shoot.no.24JAN.vase + alive.24JAN.vase, data = mar2018.1month.vase)
+anova(model.shoot.no.1month)
+
+#
+model.total.length.1month <- aov(total.length.1month.vase ~ diversity.treatment*disease.treatment + total.length.24JAN.vase, data = mar2018.1month.vase )
+anova(model.total.length.1month)
+
+model.total.length.1month.mono <- aov(total.length.1month.vase ~ disease.treatment, data = filter(mar2018.1month.vase, diversity.treatment == "mono"))
+anova(model.total.length.1month.mono)
+model.total.length.1month.poly <- aov(total.length.1month.vase ~ disease.treatment, data = filter(mar2018.1month.vase, diversity.treatment == "poly"))
+anova(model.total.length.1month.poly)
+
+#model.total.length.1month <- aov(total.length.26MAR.vase ~ diversity.treatment*disease.treatment + shoot.no.24JAN.vase + total.length.24JAN.vase, data = mar2018.1month.vase )
+#anova(model.total.length.1month)
+
+#
+model.infected.shoot.length.1month <- aov(infected.shoot.length.26MAR.vase ~ diversity.treatment*disease.treatment + infected.shoot.length.24JAN.vase, data = mar2018.1month.vase)
+anova(model.infected.shoot.length.1month)
+
+```
+
+
+
+
 
