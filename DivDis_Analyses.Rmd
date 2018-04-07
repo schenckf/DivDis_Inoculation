@@ -417,11 +417,11 @@ curve(predict(model, data.frame(terminal.shoot.length = x), type = "resp"), add 
 
 ##family identity
 ```{r}
-p <- ggplot(filter(mar2018.inoc, disease.treatment == "disease" & depth == "shallow"), aes(x = family.id, y = lesion.09.mar, fill = diversity.treatment)) + 
-  scale_fill_manual(values = c("white", "gray")) +
+p <- ggplot(filter(mar2018.1month, disease.treatment == "disease" & depth == "deep"), aes(x = family.id, y = lesion.present.26MAR)) + 
+  #scale_fill_manual(values = c("white", "gray")) +
   #geom_violin(position = position_dodge(1)) +
   geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 1) +
-  stat_summary(fun.y = mean, geom = "point", size = 1, color = "red", position = position_dodge(1)) +
+  stat_summary(fun.y = mean, geom = "point", size = 4, color = "red", position = position_dodge(1)) +
   labs(x = "family ID", y = "proportion of successful infections") +
   theme_classic()
 p
@@ -454,57 +454,61 @@ mar2018.1month <- read.csv("Vases_master_1month.csv")
 
 str(mar2018.1month)
 
+mar2018.1month$shoot.no.pc <- (mar2018.1month$shoot.no.26MAR-mar2018.1month$shoot.no.24JAN)/mar2018.1month$shoot.no.24JAN #shoot.no change per shoot per plant
+mar2018.1month$total.length.pc <-(mar2018.1month$total.length.26MAR-mar2018.1month$total.length.24JAN)/mar2018.1month$total.length.24JAN #total shoot length change per initial shoot length per plant
+mar2018.1month$infected.shoot.length.pc <- (mar2018.1month$infected.shoot.length.26MAR-mar2018.1month$infected.shoot.length.24JAN)/mar2018.1month$infected.shoot.length.24JAN #infected shoot length change per initial infected shoot length per plant
+
+
 mar2018.1month.vase <- mar2018.1month %>%
   group_by(diversity.treatment, disease.treatment, vase.id) %>%
-  summarize(shoot.no.1month.vase = (sum(shoot.no.26MAR, na.rm = T)-sum(shoot.no.24JAN, na.rm = T))/sum(shoot.no.24JAN, na.rm = T),
-            total.length.1month.vase = (sum(total.length.26MAR, na.rm = T)-sum(total.length.24JAN, na.rm = T))/sum(shoot.no.24JAN, na.rm = T),
-            infected.shoot.length.1month.vase = mean(infected.shoot.length.1month, na.rm = T),
-            lesion.spread.26MAR.vase = mean(lesion.spread.26MAR, na.rm = T),
-            shoot.no.24JAN.vase = sum(shoot.no.24JAN, na.rm = T),
-            shoot.no.26MAR.vase = sum(shoot.no.26MAR, na.rm = T),
-            total.length.26MAR.vase = sum(total.length.26MAR, na.rm = T),
-            total.length.24JAN.vase = sum(total.length.24JAN, na.rm = T),
-            alive.24JAN.vase = sum(alive.24JAN, na.rm = T),
-            infected.shoot.length.26MAR.vase = mean(infected.shoot.length.26MAR),
-            infected.shoot.length.24JAN.vase = mean(infected.shoot.length.24JAN))
+  summarize(shoot.no.pc.vase = mean(shoot.no.pc, na.rm = T),
+            total.length.pc.vase = mean(total.length.pc, na.rm = T),
+            infected.shoot.length.pc.vase = mean(infected.shoot.length.pc, na.rm = T),
+            lesion.spread.26MAR.vase = mean(lesion.spread.26MAR, na.rm = T))
 
-#mar2018.1month.vase$total.length.1month.vase <- mar2018.1month.vase$total.length.1month.vase/mar2018.1month.vase$shoot.no.26MAR.vase
+mar2018.1month.vase.NM <- mar2018.1month %>% #NO MIX
+  filter(depth != "mix") %>%
+  group_by(diversity.treatment, disease.treatment, depth, vase.id) %>%
+  summarize(shoot.no.pc.vase = mean(shoot.no.pc, na.rm = T),
+            total.length.pc.vase = mean(total.length.pc, na.rm = T),
+            infected.shoot.length.pc.vase = mean(infected.shoot.length.pc, na.rm = T),
+            lesion.spread.26MAR.vase = mean(lesion.spread.26MAR, na.rm = T))
 ```
 
-##Figures
+##ALL Figures
 ```{r}
-p <- ggplot(mar2018.1month.vase, aes(x = disease.treatment, y = shoot.no.1month.vase, fill = diversity.treatment)) + 
+p <- ggplot(mar2018.1month.vase, aes(x = disease.treatment, y = shoot.no.pc.vase, fill = diversity.treatment)) + 
   #scale_fill_manual(values = c("white", "gray")) +
   geom_violin(position = position_dodge(1)) +
   geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 0.5) +
   stat_summary(fun.y = mean, geom = "point", size = 3, color = "red", position = position_dodge(1)) +
-  labs(x = "Disease", y = "Delta number of shoots per initial shoots per vase") +
+  labs(x = "Disease", y = "Change in number of shoots per shoot per plant per vase") +
   theme_classic()
 p
 
-bargraph.CI(x.factor = disease.treatment, response = shoot.no.1month.vase, group = diversity.treatment, data = mar2018.1month.vase, ylab = "Change in number of shoots per shoot per vase", legend = T)
+bargraph.CI(x.factor = disease.treatment, response = shoot.no.pc.vase, group = diversity.treatment, data = mar2018.1month.vase, ylab = "Proportion change in number of shoots per plant per vase", legend = T)
 
-p <- ggplot(mar2018.1month.vase, aes(x = disease.treatment, y = total.length.1month.vase, fill = diversity.treatment)) + 
+p <- ggplot(mar2018.1month.vase, aes(x = disease.treatment, y = total.length.pc.vase, fill = diversity.treatment)) + 
   #scale_fill_manual(values = c("white", "gray")) +
   geom_violin(position = position_dodge(1)) +
   geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 0.5) +
   stat_summary(fun.y = mean, geom = "point", size = 3, color = "red", position = position_dodge(1)) +
-  labs(x = "Disease", y = "Change in length per shoot per vase") +
+  labs(x = "Disease", y = "Proportional change in total length per plant per vase") +
   theme_classic()
 p
 
-bargraph.CI(x.factor = disease.treatment, response = total.length.1month.vase, group = diversity.treatment, data = mar2018.1month.vase, ylab = "Delta total length per shoot per vase", legend = T)
+bargraph.CI(x.factor = disease.treatment, response = total.length.pc.vase, group = diversity.treatment, data = mar2018.1month.vase, ylab = "Proportional change in total length per plant per vase", legend = T)
 
-p <- ggplot(mar2018.1month.vase, aes(x = disease.treatment, y = infected.shoot.length.1month.vase , fill = diversity.treatment)) + 
+p <- ggplot(mar2018.1month.vase, aes(x = disease.treatment, y = infected.shoot.length.pc.vase , fill = diversity.treatment)) + 
   #scale_fill_manual(values = c("white", "gray")) +
   geom_violin(position = position_dodge(1)) +
   geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 0.5) +
   stat_summary(fun.y = mean, geom = "point", size = 3, color = "red", position = position_dodge(1)) +
-  labs(x = "Disease", y = "Mean percent change in length of inoculated shoots per vase") +
+  labs(x = "Disease", y = "Proportion change in length of inoculated shoots per plant per vase") +
   theme_classic()
 p
 
-bargraph.CI(x.factor = disease.treatment, response = infected.shoot.length.1month.vase, group = diversity.treatment, data = mar2018.1month.vase, ylab = "Mean percent delta length of infected shoot per vase", legend = T)
+bargraph.CI(x.factor = disease.treatment, response = infected.shoot.length.pc.vase, group = diversity.treatment, data = mar2018.1month.vase, ylab = "Proportion change in length of inoculated shoots per plant per vase", legend = T)
 
 
 p <- ggplot(filter(mar2018.1month.vase, disease.treatment == "disease"), aes(x = diversity.treatment, y = lesion.spread.26MAR.vase, fill = diversity.treatment)) + 
@@ -517,36 +521,62 @@ p <- ggplot(filter(mar2018.1month.vase, disease.treatment == "disease"), aes(x =
 p
 
 bargraph.CI(x.factor = diversity.treatment, response = lesion.spread.26MAR.vase, data = filter(mar2018.1month.vase, disease.treatment == "disease"), ylab = "Mean Lesion Length per vase", legend = T)
+
+p <- ggplot(filter(mar2018.1month, disease.treatment == "disease" & depth == "deep"), aes(x = family.id, y = lesion.spread.26MAR)) + 
+  #scale_fill_manual(values = c("white", "gray")) +
+  #geom_violin(position = position_dodge(1)) +
+  geom_dotplot(binaxis = 'y', stackdir = 'center', position = position_dodge(1), dotsize  = 1) +
+  stat_summary(fun.y = mean, geom = "point", size = 4, color = "red", position = position_dodge(1)) +
+  labs(x = "family ID", y = "Lesion Length (cm)") +
+  ylim(0,30) +
+  theme_classic()
+p
 ```
 
-##Analyses
+##ALL Analyses
 ```{r}
 #
-model.shoot.no.1month <-aov(shoot.no.1month.vase ~ diversity.treatment*disease.treatment, data = mar2018.1month.vase)
+model.shoot.no.1month <-aov(shoot.no.pc.vase ~ diversity.treatment*disease.treatment, data = mar2018.1month.vase)
 anova(model.shoot.no.1month)
 
-model.shoot.no.1month <- aov(shoot.no.26MAR.vase ~ diversity.treatment*disease.treatment + shoot.no.24JAN.vase + alive.24JAN.vase, data = mar2018.1month.vase)
-anova(model.shoot.no.1month)
+#model.shoot.no.1month <- aov(shoot.no.26MAR.vase ~ diversity.treatment*disease.treatment + shoot.no.24JAN.vase + alive.24JAN.vase, data = mar2018.1month.vase)
+#anova(model.shoot.no.1month)
 
 #
-model.total.length.1month <- aov(total.length.1month.vase ~ diversity.treatment*disease.treatment + total.length.24JAN.vase, data = mar2018.1month.vase )
+model.total.length.1month <- aov(total.length.pc.vase ~ diversity.treatment*disease.treatment, data = mar2018.1month.vase )
 anova(model.total.length.1month)
 
-model.total.length.1month.mono <- aov(total.length.1month.vase ~ disease.treatment, data = filter(mar2018.1month.vase, diversity.treatment == "mono"))
-anova(model.total.length.1month.mono)
-model.total.length.1month.poly <- aov(total.length.1month.vase ~ disease.treatment, data = filter(mar2018.1month.vase, diversity.treatment == "poly"))
-anova(model.total.length.1month.poly)
+#model.total.length.1month.mono <- aov(total.length.1month.vase ~ disease.treatment, data = filter(mar2018.1month.vase, diversity.treatment == "mono"))
+#anova(model.total.length.1month.mono)
+#model.total.length.1month.poly <- aov(total.length.1month.vase ~ disease.treatment, data = filter(mar2018.1month.vase, diversity.treatment == "poly"))
+#anova(model.total.length.1month.poly)
 
 #model.total.length.1month <- aov(total.length.26MAR.vase ~ diversity.treatment*disease.treatment + shoot.no.24JAN.vase + total.length.24JAN.vase, data = mar2018.1month.vase )
 #anova(model.total.length.1month)
 
 #
-model.infected.shoot.length.1month <- aov(infected.shoot.length.26MAR.vase ~ diversity.treatment*disease.treatment + infected.shoot.length.24JAN.vase, data = mar2018.1month.vase)
+model.infected.shoot.length.1month <- aov(infected.shoot.length.pc.vase ~ diversity.treatment*disease.treatment, data = mar2018.1month.vase)
 anova(model.infected.shoot.length.1month)
 
+#
+model.lesion.length <- aov(lesion.spread.26MAR.vase ~ diversity.treatment, data = filter(mar2018.1month.vase, disease.treatment == "disease"))
+anova(model.lesion.length)
 ```
 
+##No Mix Figures
+```{r}
+#switch up filter factor
+bargraph.CI(x.factor = disease.treatment, response = shoot.no.pc.vase, group = diversity.treatment, data = filter(mar2018.1month.vase.NM, depth == "deep"), ylab = "Proportion change in number of shoots per plant per vase", legend = T)
 
+#
+bargraph.CI(x.factor = disease.treatment, response = total.length.pc.vase, group = diversity.treatment, data = filter(mar2018.1month.vase.NM, depth == "deep"), ylab = "Proportional change in total length per plant per vase", legend = T)
+
+#
+bargraph.CI(x.factor = disease.treatment, response = infected.shoot.length.pc.vase, group = diversity.treatment, data = filter(mar2018.1month.vase.NM, depth == "deep"), ylab = "Proportion change in length of inoculated shoots per plant per vase", legend = T)
+
+#
+bargraph.CI(x.factor = diversity.treatment, response = lesion.spread.26MAR.vase, group = depth, data = filter(mar2018.1month.vase.NM, disease.treatment == "disease"), ylab = "Mean Lesion Length per vase", legend = T)
+```
 
 
 
