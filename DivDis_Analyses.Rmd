@@ -812,4 +812,153 @@ p
 
 ```
 
+#2MONTH Analyses for Team Seagrass
+
+##MONO_POLY ANALYSES
+###manipulating data
+```{r}
+  #Reading in data from 2 month vase master data
+d.MP.2month <- read.csv("Vases_master_2month.csv")
+
+  #Excluding all dead plants at initial sampling, all plants in mix depth polycultures, all plants from families that are not represented in at least 1 of each of 4 diversity*disease combinations
+  #Then taking mean number of shoots for each family in each of 4 diversity by disease combinations
+d.MP.2month <- d.MP.2month %>%
+  filter(alive.24JAN > 0) %>%
+  filter(depth != "mix") %>%
+  filter(family.id != "D1") %>%
+  filter(family.id != "D2") %>%
+  filter(family.id != "D9") %>%
+  filter(family.id != "M10") %>%
+  filter(family.id != "M11") %>%
+  filter(family.id != "M8") %>%
+  filter(family.id != "S10") %>%
+  filter(family.id != "S4") %>%
+  filter(family.id != "S5") %>%
+  group_by(diversity.treatment, disease.treatment, depth, family.id) %>%
+  summarize(shoots.initial = mean(shoot.no.24JAN, na.rm = T), shoots.final = mean(shoot.no.24APR, na.rm = T), plants.initial = sum(alive.24APR, na.rm = T), isl.initial = mean(infected.shoot.length.24JAN, na.rm = T), isl.final = mean(infected.shoot.length.24APR))
+
+#delta responses
+d.MP.2month$delta.shoots <- d.MP.2month$shoots.final - d.MP.2month$shoots.initial
+d.MP.2month$delta.isl <- d.MP.2month$isl.final - d.MP.2month$isl.initial
+```
+
+###analyses and figures
+```{r}
+#Shoot Number Family Identity
+model.MP <- aov(shoots.final ~ depth/family.id + shoots.initial, data = d.MP.2month)
+anova(model.MP)
+
+#Shoot Number Mono-Poly
+model.MP <- aov(shoots.final ~ diversity.treatment*depth*disease.treatment + shoots.initial, data = d.MP.2month)
+anova(model.MP)
+
+#depth:disease.treatment (P = 0.038)
+p <- ggplot(d.MP.2month, aes(x = disease.treatment, y = delta.shoots)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = depth), position = position_dodge(0.5)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = depth), position = position_dodge(0.5), size = 0.5) +
+  labs(x = "Depth", y = "Delta Shoot No.") +
+  #scale_y_continuous(breaks=seq(0,1,0.2), limits = c(0,1)) +
+  coord_cartesian(ylim = c(-0.5,1)) +
+  theme_classic()
+p
+
+#diversity.treatment:disease.treatment (P = 0.078)
+p <- ggplot(filter(d.MP.2month, depth == "shallow"), aes(x = disease.treatment, y = delta.shoots)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = diversity.treatment), position = position_dodge(0.5)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = diversity.treatment), position = position_dodge(0.5), size = 0.5) +
+  labs(x = "Depth", y = "Delta Shoot No.") +
+  #scale_y_continuous(breaks=seq(0,1,0.2), limits = c(0,1)) +
+  coord_cartesian(ylim = c(-0.5,1)) +
+  theme_classic()
+p
+
+#depth:family.id (P = 0.058)
+p <- ggplot(d.MP.2month, aes(x = family.id, y = delta.shoots)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = depth), position = position_dodge(0.5)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = depth), position = position_dodge(0.5), size = 0.5) +
+  labs(x = "Family ID", y = "Delta Shoot No.") +
+  theme_classic()
+p
+```
+
+##EXP_OBS ANALYSES
+###manipulating data
+```{r}
+#Calculating expected values
+d.OE.expected.2month <- read.csv("Vases_master_2month.csv")
+d.OE.expected.2month <- d.OE.expected.2month %>%
+  filter(alive.24JAN > 0) %>%
+  filter(depth != "mix") %>%
+  group_by(diversity.treatment, disease.treatment, depth, family.id) %>%
+  summarize(shoots.initial = mean(shoot.no.24JAN, na.rm = T), shoots.final = mean(shoot.no.24APR, na.rm = T), plants.initial = sum(alive.24JAN, na.rm = T), isl.initial = mean(infected.shoot.length.24JAN, na.rm = T), isl.final = mean(infected.shoot.length.24APR))
+
+d.OE.expected.2month.total <- d.OE.expected.2month %>%
+  group_by(diversity.treatment, disease.treatment) %>%
+  summarize(shoots.initial = mean(shoots.initial), shoots.final = mean(shoots.final))
+
+#Uploading data with expected values for shoot number for each shoot (entered in excel using data produced above as reference)
+d.OE.2month <- read.csv("d.OE.2month.csv")
+
+#summing shoot values within each vase and removing vases where shoots do not have monoculture to calculate expected value
+d.OE.2month <- d.OE.2month %>%
+  group_by(diversity.treatment, disease.treatment, depth, vase.id) %>%
+  summarize(obs.sn.initial = sum(obs.sn.initial), obs.sn.final = sum(obs.sn.2month), exp.sn.initial = sum(exp.sn.initial), exp.sn.final = sum(exp.sn.2month)) %>%
+  filter(exp.sn.initial != "NA")
+
+#calculating change in shoots expected and observed at vase level
+d.OE.2month$delta.shoots.exp <- d.OE.2month$exp.sn.final - d.OE.2month$exp.sn.initial
+d.OE.2month$delta.shoots.obs <- d.OE.2month$obs.sn.final - d.OE.2month$obs.sn.initial
+
+#creating single columns for observed and expected values
+#aka creating column that seperates observed and expected values
+d.OE.2month.A <- subset(d.OE.2month, select = c(diversity.treatment:obs.sn.initial, exp.sn.initial))
+d.OE.2month.A <- gather(d.OE.2month.A, obs.exp.initial, sn.initial, obs.sn.initial:exp.sn.initial)
+d.OE.2month.A$exp.obs <- d.OE.2month.A$obs.exp.initial
+d.OE.2month.A$exp.obs[d.OE.2month.A$exp.obs=="obs.sn.initial"] <- "obs"
+d.OE.2month.A$exp.obs[d.OE.2month.A$exp.obs=="exp.sn.initial"] <- "exp"
+d.OE.2month.A <- subset(d.OE.2month.A, select = c(diversity.treatment:vase.id, sn.initial:exp.obs))
+
+d.OE.2month.B <- subset(d.OE.2month, select = c(diversity.treatment:vase.id, obs.sn.final, exp.sn.final))
+d.OE.2month.B<- gather(d.OE.2month.B, obs.exp.final, sn.final, obs.sn.final:exp.sn.final)
+d.OE.2month.B$exp.obs <- d.OE.2month.B$obs.exp.final
+d.OE.2month.B$exp.obs[d.OE.2month.B$exp.obs=="obs.sn.final"] <- "obs"
+d.OE.2month.B$exp.obs[d.OE.2month.B$exp.obs=="exp.sn.final"] <- "exp"
+d.OE.2month.B <- subset(d.OE.2month.B, select = c(diversity.treatment:vase.id, sn.final:exp.obs))
+
+d.OE.2month.C <- subset(d.OE.2month, select = c(diversity.treatment:vase.id, delta.shoots.obs, delta.shoots.exp))
+d.OE.2month.C <- gather(d.OE.2month.C, exp.obs, delta.shoots, delta.shoots.obs:delta.shoots.exp)
+d.OE.2month.C$exp.obs[d.OE.2month.C$exp.obs=="delta.shoots.obs"] <- "obs"
+d.OE.2month.C$exp.obs[d.OE.2month.C$exp.obs=="delta.shoots.exp"] <- "exp"
+d.OE.2month.C <- subset(d.OE.2month.C, select = c(diversity.treatment:vase.id, delta.shoots:exp.obs))
+
+d.OE.2month <- merge(d.OE.2month.A, d.OE.2month.B, by.all = c("diversity.treatment", "disease.treatment", "depth", "vase.id", "exp.obs"))
+
+d.OE.2month <- merge(d.OE.2month, d.OE.2month.C, by.all = c("diversity.treatment", "disease.treatment", "depth", "vase.id", "exp.obs"))
+```
+
+###analyses and figures
+```{r}
+#Shoot Number
+model.OE <- aov(sn.final ~ exp.obs + exp.obs:disease.treatment + exp.obs:depth + exp.obs:disease.treatment:depth + sn.initial, data = d.OE.2month)
+anova(model.OE) #Do I need to pair vases??
+
+p <- ggplot(d.OE, aes(x = exp.obs, y = delta.shoots)) + 
+  stat_summary(fun.y = mean, geom = "point", aes(colour = depth), size = 2) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = depth), size = 0.5) +
+  labs(x = "Expected vs Observed", y = "Delta Shoot No.") +
+  #scale_y_continuous(breaks=seq(0,3,0.5)) +
+  coord_cartesian(ylim = c(-1,3)) +
+  theme_classic()
+p
+
+p <- ggplot(filter(d.OE, disease.treatment == "control"), aes(x = exp.obs, y = delta.shoots)) + 
+  stat_summary(fun.y = "mean", geom = "point", aes(colour = depth), size = 2) +
+  stat_summary(fun.data = "mean_se", geom = "errorbar", aes(colour = depth), size = 0.5) +
+  labs(x = "Expected vs Observed", y = "Delta Shoot No.") +
+  #scale_y_continuous(breaks=seq(-1,3,0.5)) +
+  coord_cartesian(ylim = c(-1,3)) +
+  theme_classic()
+p
+
+```
 
