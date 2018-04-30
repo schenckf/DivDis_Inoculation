@@ -863,7 +863,7 @@ p <- ggplot(d.MP.2month, aes(x = disease.treatment, y = delta.shoots)) +
 p
 
 #diversity.treatment:disease.treatment (P = 0.078)
-p <- ggplot(filter(d.MP.2month, depth == "shallow"), aes(x = disease.treatment, y = delta.shoots)) + 
+p <- ggplot(d.MP.2month, aes(x = disease.treatment, y = delta.shoots)) + 
   stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = diversity.treatment), position = position_dodge(0.5)) +
   stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = diversity.treatment), position = position_dodge(0.5), size = 0.5) +
   labs(x = "Depth", y = "Delta Shoot No.") +
@@ -957,6 +957,94 @@ p <- ggplot(filter(d.OE, disease.treatment == "control"), aes(x = exp.obs, y = d
   labs(x = "Expected vs Observed", y = "Delta Shoot No.") +
   #scale_y_continuous(breaks=seq(-1,3,0.5)) +
   coord_cartesian(ylim = c(-1,3)) +
+  theme_classic()
+p
+
+```
+
+##VASE LEVEL ANALYSES
+###manipulating data
+```{r}
+d.vase.2month <- read.csv("Vases_master_2month.csv")
+
+d.vase.2month <- d.vase.2month %>%
+  filter(alive.24JAN > 0) %>%
+  filter(depth != "mix") %>%
+  group_by(diversity.treatment, disease.treatment, depth, paired.com.id.final) %>%
+  summarize(shoots.initial = sum(shoot.no.24JAN, na.rm = T), shoots.final = sum(shoot.no.24APR, na.rm = T), plants.initial = sum(alive.24JAN, na.rm = T), tl.initial = sum(total.length.24JAN, na.rm = T), tl.final = sum(total.length.24APR, na.rm = T), isl.initial = mean(infected.shoot.length.24JAN, na.rm = T), isl.final = mean(infected.shoot.length.24APR, na.rm = T))
+
+#delta responses
+d.vase.2month$delta.shoots <- d.vase.2month$shoots.final - d.vase.2month$shoots.initial
+d.vase.2month$delta.tl <- d.vase.2month$tl.final - d.vase.2month$tl.initial
+```
+
+###analyses and figures
+```{r}
+#shoot number
+model.vase <- aov(shoots.final ~ diversity.treatment*depth*disease.treatment + shoots.initial, data = d.vase.2month)
+anova(model.vase)
+
+#diversity.treatment (P = 0.093)
+p <- ggplot(d.vase.2month, aes(x = diversity.treatment, y = delta.shoots)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = diversity.treatment), position = position_dodge(0.5)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = diversity.treatment), position = position_dodge(0.5), size = 0.5) +
+  labs(x = "Diversity Treatment", y = "Delta Shoot No.") +
+  #scale_y_continuous(breaks=seq(0,1,0.2), limits = c(0,1)) +
+  coord_cartesian(ylim = c(0,2)) +
+  theme_classic()
+p
+
+#disease.treatment (P = 0.0097)
+p <- ggplot(d.vase.2month, aes(x = disease.treatment, y = delta.shoots)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = disease.treatment), position = position_dodge(0.5)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = disease.treatment), position = position_dodge(0.5), size = 0.5) +
+  labs(x = "Disease Treatment", y = "Delta Shoot No.") +
+  #scale_y_continuous(breaks=seq(0,1,0.2), limits = c(0,1)) +
+  coord_cartesian(ylim = c(0,2)) +
+  theme_classic()
+p
+
+#diversity.treatment:depth (P = 0.045)
+p <- ggplot(d.vase.2month, aes(x = diversity.treatment, y = delta.shoots)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = depth), position = position_dodge(0.5)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = depth), position = position_dodge(0.5), size = 0.5) +
+  labs(x = "Diversity Treatment", y = "Delta Shoot No.") +
+  #scale_y_continuous(breaks=seq(0,1,0.2), limits = c(0,1)) +
+  coord_cartesian(ylim = c(-0.5,3)) +
+  theme_classic()
+p
+
+#disease.treatment:depth (P = 0.086)
+p <- ggplot(d.vase.2month, aes(x = disease.treatment, y = delta.shoots)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = depth), position = position_dodge(0.5)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = depth), position = position_dodge(0.5), size = 0.5) +
+  labs(x = "Disease Treatment", y = "Delta Shoot No.") +
+  #scale_y_continuous(breaks=seq(0,1,0.2), limits = c(0,1)) +
+  coord_cartesian(ylim = c(-1,3)) +
+  theme_classic()
+p
+
+#diversity.treatment:disease.treatment:depth (P = 0.072)
+p <- ggplot(filter(d.vase.2month, depth == "shallow"), aes(x = disease.treatment, y = delta.shoots)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = diversity.treatment), position = position_dodge(0.5)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = diversity.treatment), position = position_dodge(0.5), size = 0.5) +
+  labs(x = "Disease Treatment", y = "Delta Shoot No.") +
+  #scale_y_continuous(breaks=seq(0,1,0.2), limits = c(0,1)) +
+  coord_cartesian(ylim = c(-1,5)) +
+  theme_classic()
+p
+
+#Total length
+model.vase <- aov(tl.final ~ diversity.treatment*disease.treatment + tl.initial, data = filter(d.vase.2month, depth == "shallow"))
+anova(model.vase)
+
+#diversity.treatment:disease.treatment:depth (P = 0.037)
+p <- ggplot(filter(d.vase.2month, depth == "shallow"), aes(x = disease.treatment, y = delta.tl)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = diversity.treatment), position = position_dodge(0.5)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = diversity.treatment), position = position_dodge(0.5), size = 0.5) +
+  labs(x = "Disease Treatment", y = "Delta Total Length (cm)") +
+  #scale_y_continuous(breaks=seq(0,1,0.2), limits = c(0,1)) +
+  coord_cartesian(ylim = c(-200,100)) +
   theme_classic()
 p
 
