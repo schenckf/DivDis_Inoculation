@@ -15,6 +15,11 @@ library(tidyr)
 library(ggplot2)
 library(sciplot)
 library(multcompView)
+
+#Analyses
+library(nlme)
+library(lme4)
+library(car)
 ```
 
 #Uploading data
@@ -1287,3 +1292,163 @@ p <- ggplot(d.vase.3month, aes(x = diversity.treatment, y = delta.tl)) +
 p
 
 ```
+
+#JUNE ANALYSES
+##VASE LEVEL ANALYSES
+###manipulating data
+```{r}
+d.june <- read.csv("Vases_master_final_18JUNE2018.csv")
+
+d.initial <- d.june %>%
+  filter(month == "january") %>%
+  group_by(month, diversity.treatment, disease.treatment, depth, paired.com.id.final, loc.id) %>%
+  summarize(no.shoots = mean(no.shoots, na.rm = T))
+
+d.final <- d.june %>%
+  filter(month == "june") %>%
+  group_by(month, diversity.treatment, disease.treatment, depth, paired.com.id.final, loc.id) %>%
+  summarize(no.shoots = mean(no.shoots, na.rm = T)) %>%
+  filter(loc.id != "NA")
+
+d.vase.june <- merge(d.initial, d.final, by = c("diversity.treatment", "disease.treatment", "depth", "paired.com.id.final", "loc.id"))
+
+d.vase.3months <- read.csv("Vases_master_3month.csv")
+d.vase.3months.vars <- c("diversity.treatment", "disease.treatment", "depth", "paired.com.id.final", "loc.id", "shoot.no.26MAR", "shoot.no.24APR", "shoot.no.29MAY")
+d.vase.3months.sub <- d.vase.3months[d.vase.3months.vars]
+
+d.vase.june <- merge(d.vase.june, d.vase.3months.sub, by = c("diversity.treatment", "disease.treatment", "depth", "paired.com.id.final", "loc.id"))
+
+d.vase.june.filter <- d.vase.june %>%
+  filter(no.shoots.x > 0) %>%
+  filter(depth != "mix") %>%
+  group_by(diversity.treatment, disease.treatment, depth, paired.com.id.final) %>%
+  summarize(shoots.initial = sum(no.shoots.x, na.rm = T), shoots.final = sum(no.shoots.y, na.rm = T))
+
+d.vase.june.filter$delta.shoots <- d.vase.june.filter$shoots.final - d.vase.june.filter$shoots.initial
+
+d.vase.june.timeline <- d.vase.june[-c(6,8)]
+d.vase.june.timeline <- gather(d.vase.june.timeline, exp.day, no.shoots, no.shoots.x:shoot.no.29MAY)
+d.vase.june.timeline$exp.day[d.vase.june.timeline$exp.day == "shoot.no.29MAY"]<- 91
+d.vase.june.timeline$exp.day[d.vase.june.timeline$exp.day == "shoot.no.24APR"]<- 56
+d.vase.june.timeline$exp.day[d.vase.june.timeline$exp.day == "no.shoots.x"]<- -34
+d.vase.june.timeline$exp.day[d.vase.june.timeline$exp.day == "no.shoots.y"]<- 98
+d.vase.june.timeline$exp.day[d.vase.june.timeline$exp.day == "shoot.no.26MAR"]<- 27
+
+d.vase.timeline <- d.vase.june.timeline %>%
+  filter(depth != "mix") %>%
+  group_by(diversity.treatment, disease.treatment, depth, paired.com.id.final, exp.day) %>%
+  summarize(no.shoots = sum(no.shoots, na.rm = T))
+d.vase.timeline$exp.day <- as.numeric(d.vase.timeline$exp.day)
+```
+
+###analyses and figures
+```{r}
+#shoot number
+model.vase <- aov(shoots.final ~ diversity.treatment*depth*disease.treatment + shoots.initial, data = d.vase.june.filter)
+Anova(model.vase)
+
+#diversity.treatment
+p <- ggplot(d.vase.june.filter, aes(x = diversity.treatment, y = delta.shoots)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = diversity.treatment), position = position_dodge(0.5)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = diversity.treatment), position = position_dodge(0.5), size = 0.5) +
+  labs(x = "Diversity Treatment", y = "Delta Shoot No.") +
+  #scale_y_continuous(breaks=seq(0,1,0.2), limits = c(0,1)) +
+  coord_cartesian(ylim = c(0,3)) +
+  theme_classic()
+p
+
+#disease.treatment
+p <- ggplot(d.vase.june.filter, aes(x = disease.treatment, y = delta.shoots)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = disease.treatment), position = position_dodge(0.5)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = disease.treatment), position = position_dodge(0.5), size = 0.5) +
+  labs(x = "Disease Treatment", y = "Delta Shoot No.") +
+  #scale_y_continuous(breaks=seq(0,1,0.2), limits = c(0,1)) +
+  coord_cartesian(ylim = c(0,2)) +
+  theme_classic()
+p
+
+#diversity.treatment:depth
+p <- ggplot(d.vase.june.filter, aes(x = diversity.treatment, y = delta.shoots)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = depth), position = position_dodge(0.5)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = depth), position = position_dodge(0.5), size = 0.5) +
+  labs(x = "Diversity Treatment", y = "Delta Shoot No.") +
+  #scale_y_continuous(breaks=seq(0,1,0.2), limits = c(0,1)) +
+  coord_cartesian(ylim = c(-1,5)) +
+  theme_classic()
+p
+
+#disease.treatment:depth
+p <- ggplot(d.vase.june.filter, aes(x = disease.treatment, y = delta.shoots)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = depth), position = position_dodge(0.5)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = depth), position = position_dodge(0.5), size = 0.5) +
+  labs(x = "Disease Treatment", y = "Delta Shoot No.") +
+  #scale_y_continuous(breaks=seq(0,1,0.2), limits = c(0,1)) +
+  coord_cartesian(ylim = c(-1,4)) +
+  theme_classic()
+p
+
+#diversity.treatment:disease.treatment:depth
+p <- ggplot(filter(d.vase.june.filter, depth == "deep"), aes(x = disease.treatment, y = delta.shoots)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = diversity.treatment), position = position_dodge(0.5)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = diversity.treatment), position = position_dodge(0.5), size = 0.5) +
+  labs(x = "Disease Treatment", y = "Delta Shoot No.", title = "Deep") +
+  #scale_y_continuous(breaks=seq(0,1,0.2), limits = c(0,1)) +
+  coord_cartesian(ylim = c(-2,6)) +
+  theme_classic()
+p
+
+########################################
+##Shoot No. change timeline
+p <- ggplot(filter(d.vase.timeline, exp.day != 91), aes(x = exp.day, y = no.shoots)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = depth))+
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = depth), size = 0.5) +
+  labs(x = "Experiment Day", y = "No. shoots", title = "") +
+  #scale_y_continuous(breaks=seq(0,1,0.2), limits = c(0,1)) +
+  coord_cartesian(ylim = c(0,15)) +
+  theme_classic()
+p
+
+```
+
+##FINAL DAY ANALYSES
+###manipulating data
+```{r}
+d.june.f <- d.june
+
+d.june.f <- d.june.f %>%
+  filter(month == "june") %>%
+  group_by(month, diversity.treatment, disease.treatment, depth, paired.com.id.final, loc.id, shoot.id) %>%
+  summarize(alive = mean(alive, na.rm = T), no.shoots = mean(no.shoots, na.rm = T), ag.biomass = mean(ag.biomass, na.rm = T), bg.biomass = mean(bg.biomass, na.rm = T), shoot.length = mean(shoot.length, na.rm = T), no.leaves = max(leaf.id, na.rm = T))
+
+d.june.f$no.leaves[d.june.f$no.leaves == "-Inf"]<- NA
+
+d.june.f <- d.june.f %>%
+  filter(loc.id != "NA") %>%
+  filter(depth != "mix") %>%
+  group_by(month, diversity.treatment, disease.treatment, depth, paired.com.id.final, loc.id) %>%
+  summarize(no.shoots = mean(no.shoots, na.rm = T), ag.biomass = mean(ag.biomass, na.rm = T), bg.biomass = mean(bg.biomass, na.rm = T), shoot.length = sum(shoot.length, na.rm = T), no.leaves = sum(no.leaves, na.rm = T))
+
+d.june.f <- d.june.f %>%
+  group_by(month, diversity.treatment, disease.treatment, depth, paired.com.id.final) %>%
+  summarize(no.shoots = sum(no.shoots, na.rm = T), ag.biomass = sum(ag.biomass, na.rm = T), bg.biomass = sum(bg.biomass, na.rm = T), shoot.length = sum(shoot.length, na.rm = T), no.leaves = sum(no.leaves, na.rm = T))
+
+d.june.f$ag.per.shoot <- d.june.f$ag.biomass/d.june.f$no.shoots
+d.june.f$bg.per.shoot <- d.june.f$bg.biomass/d.june.f$no.shoots
+```
+
+###analyses and figures
+```{r}
+p <- ggplot(d.june.f, aes(x = disease.treatment, y = bg.biomass)) + 
+  stat_summary(fun.y = mean, geom = "point", size = 2, aes(colour = depth), position = position_dodge(0.5)) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", aes(colour = depth), position = position_dodge(0.5), size = 0.5) +
+  labs(x = "Disease Treatment", y = "BG biomass (g)", title = "") +
+  #scale_y_continuous(breaks=seq(0,1,0.2), limits = c(0,1)) +
+  coord_cartesian(ylim = c(0,2)) +
+  theme_classic()
+p
+
+
+```
+
+
+
